@@ -1,9 +1,15 @@
 import React, { useCallback, useState } from 'react';
 import ReactFlow, {
+  addEdge,
+  applyEdgeChanges,
+  applyNodeChanges,
   Background,
+  Connection,
   Controls,
   Edge,
-  Node
+  EdgeChange,
+  Node,
+  NodeChange
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -51,21 +57,21 @@ export const FlowBuilder: React.FC<FlowBuilderProps> = ({ flow, onFlowUpdate }) 
     }
   }, [flow, onFlowUpdate, selectedComponent]);
 
-  // const onNodesChange = useCallback((changes: NodeChange[]) => {
-  //   const updatedComponents = applyNodeChanges(changes, flow.components.map(c => ({...c, position: c.position}))).map(c => ({...c, position: c.position}));
-  //   onFlowUpdate({ ...flow, components: updatedComponents });
-  // }, [flow.components, onFlowUpdate]);
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    const updatedComponents = applyNodeChanges(changes, flow.components.map(c => ({...c, position: c.position}))).map(c => ({...c, position: c.position}));
+    onFlowUpdate({ ...flow, components: updatedComponents });
+  }, [flow.components, onFlowUpdate]);
 
-  // const onEdgesChange = useCallback((changes: EdgeChange[]) => {
-  //   const updatedConnections = applyEdgeChanges(changes, flow.connections);
-  //   onFlowUpdate({ ...flow, connections: updatedConnections });
-  // }, [flow.connections, onFlowUpdate]);
+  const onEdgesChange = useCallback((changes: EdgeChange[]) => {
+    const updatedConnections = applyEdgeChanges(changes, flow.connections);
+    onFlowUpdate({ ...flow, connections: updatedConnections });
+  }, [flow.connections, onFlowUpdate]);
 
-  // const onConnect = useCallback((params: Connection) => {
-  //   const newConnection = { ...params, id: generateId() };
-  //   const updatedConnections = addEdge(newConnection, flow.connections);
-  //   onFlowUpdate({ ...flow, connections: updatedConnections });
-  // }, [flow.connections, onFlowUpdate]);
+  const onConnect = useCallback((params: Connection) => {
+    const newConnection = { ...params, id: generateId() };
+    const updatedConnections = addEdge(newConnection, flow.connections);
+    onFlowUpdate({ ...flow, connections: updatedConnections });
+  }, [flow.connections, onFlowUpdate]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -123,7 +129,7 @@ export const FlowBuilder: React.FC<FlowBuilderProps> = ({ flow, onFlowUpdate }) 
           <ReactFlow
             nodes={nodes}
             edges={edges}
-            // onNodesChange={onNodesChange}
+            onNodesChange={onNodesChange}
             // onEdgesChange={onEdgesChange}
             // onConnect={onConnect}
             nodeTypes={nodeTypes}
