@@ -1,9 +1,9 @@
 "use client"
-import React, { useState } from 'react';
-import { FlowBuilder } from '../src/components/FlowBuilder';
-import { AuthFlow } from '../src/types/auth';
-import { generateId } from '../src/utils/helpers';
 import * as Icons from 'lucide-react';
+import { useState } from 'react';
+import { FlowBuilder } from '../components/FlowBuilder';
+import { AuthFlow } from '../types/auth';
+import { generateId } from '../utils/helpers';
 
 const initialFlow: AuthFlow = {
   id: generateId(),
