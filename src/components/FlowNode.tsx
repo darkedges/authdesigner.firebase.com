@@ -1,8 +1,21 @@
 
+import { Code, ExternalLink, GitBranch, Key, LogIn, Mail, Shield, UserPlus, Users } from 'lucide-react';
 import React from 'react';
 import { Handle, Position } from 'reactflow';
-import { AuthComponent } from '../types/auth';
 import { componentTemplates } from '../data/componentTemplates';
+import { AuthComponent } from '../types/auth';
+
+const iconMap: { [key: string]: React.ElementType } = {
+  LogIn,
+  UserPlus,
+  Users,
+  Shield,
+  Mail,
+  Key,
+  GitBranch,
+  Code,
+  ExternalLink,
+};
 
 interface FlowNodeProps {
   data: {
@@ -16,9 +29,21 @@ interface FlowNodeProps {
 
 export const FlowNode: React.FC<FlowNodeProps> = ({ data }) => {
   const { component, onSelect, isSelected } = data;
-  const template = componentTemplates[component.type];
+  const template = componentTemplates.find(t => t.type === component.type);
 
-  const Icon = template.icon;
+  if (!template) {
+    // Handle the case where the template is not found
+    return (
+      <div className="w-48 bg-red-100 border-2 border-red-500 rounded-lg shadow-lg">
+        <div className="p-4">
+          <h3 className="text-md font-semibold text-red-800">Error</h3>
+          <p className="text-sm text-red-600">Component template not found.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const Icon = iconMap[template.icon];
 
   return (
     <div
@@ -30,7 +55,7 @@ export const FlowNode: React.FC<FlowNodeProps> = ({ data }) => {
       <div className="p-4">
         <div className="flex items-center mb-2">
           <div className="w-8 h-8 mr-3">
-            <Icon className="w-full h-full text-gray-600" />
+            {Icon && <Icon className="w-full h-full text-gray-600" />}
           </div>
           <h3 className="text-md font-semibold text-gray-800">{component.name}</h3>
         </div>

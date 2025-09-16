@@ -1,5 +1,6 @@
 export interface AuthComponent {
   id: string;
+  data: any
   type: AuthComponentType;
   name: string;
   description: string;
