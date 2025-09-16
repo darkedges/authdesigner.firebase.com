@@ -22,6 +22,7 @@ function App() {
   const [showWelcome, setShowWelcome] = useState(true);
 
   const handleFlowUpdate = (flow: AuthFlow) => {
+    console.log('Flow updated:', flow)
     setCurrentFlow({ ...flow, updatedAt: new Date().toISOString() });
   };
 

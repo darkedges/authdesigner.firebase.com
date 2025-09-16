@@ -3,18 +3,10 @@ import { AuthComponentType } from '../types/auth';
 import { componentTemplates } from '../data/componentTemplates';
 import * as Icons from 'lucide-react';
 
-interface ComponentLibraryProps {
-  onDragStart: (type: AuthComponentType) => void;
-  onDragEnd: () => void;
-}
-
-export const ComponentLibrary: React.FC<ComponentLibraryProps> = ({ 
-  onDragStart, 
-  onDragEnd 
-}) => {
+export const ComponentLibrary: React.FC = () => {
   const handleDragStart = (e: React.DragEvent, type: AuthComponentType) => {
-    e.dataTransfer.effectAllowed = 'copy';
-    onDragStart(type);
+    e.dataTransfer.setData('application/reactflow', type);
+    e.dataTransfer.effectAllowed = 'move';
   };
 
   return (
@@ -38,7 +30,6 @@ export const ComponentLibrary: React.FC<ComponentLibraryProps> = ({
                   key={template.type}
                   draggable
                   onDragStart={(e) => handleDragStart(e, template.type)}
-                  onDragEnd={onDragEnd}
                   className="p-3 border border-gray-200 rounded-lg cursor-grab hover:shadow-md transition-shadow bg-white"
                 >
                   <div className="flex items-start space-x-3">
@@ -69,7 +60,6 @@ export const ComponentLibrary: React.FC<ComponentLibraryProps> = ({
                   key={template.type}
                   draggable
                   onDragStart={(e) => handleDragStart(e, template.type)}
-                  onDragEnd={onDragEnd}
                   className="p-3 border border-gray-200 rounded-lg cursor-grab hover:shadow-md transition-shadow bg-white"
                 >
                   <div className="flex items-start space-x-3">
@@ -100,7 +90,6 @@ export const ComponentLibrary: React.FC<ComponentLibraryProps> = ({
                   key={template.type}
                   draggable
                   onDragStart={(e) => handleDragStart(e, template.type)}
-                  onDragEnd={onDragEnd}
                   className="p-3 border border-gray-200 rounded-lg cursor-grab hover:shadow-md transition-shadow bg-white"
                 >
                   <div className="flex items-start space-x-3">

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef, useMemo } from 'react';
 import ReactFlow, {
   addEdge,
   applyEdgeChanges,
@@ -9,7 +9,8 @@ import ReactFlow, {
   Edge,
   EdgeChange,
   Node,
-  NodeChange
+  NodeChange,
+  ReactFlowInstance,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -69,7 +70,9 @@ const nodeTypes = {
 
 export const FlowBuilder: React.FC<FlowBuilderProps> = ({ flow, onFlowUpdate }) => {
   const [selectedComponent, setSelectedComponent] = useState<AuthComponent | null>(null);
-  const [draggedComponent, setDraggedComponent] = useState<AuthComponentType | null>(null);
+  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+
 
   // --- Component Update/Delete Handlers ---
   const handleComponentUpdate = useCallback((componentId: string, updates: Partial<AuthComponent>) => {
@@ -113,52 +116,59 @@ export const FlowBuilder: React.FC<FlowBuilderProps> = ({ flow, onFlowUpdate }) 
     onFlowUpdate({ ...flow, connections: updatedConnections });
   }, [flow.connections, onFlowUpdate]);
 
-const onConnect = useCallback((params: Connection) => {
-  const newEdge: Edge = {
-    id: generateId(),
-    source: params.source ?? '',
-    target: params.target ?? '',
-    sourceHandle: params.sourceHandle,
-    targetHandle: params.targetHandle,
-  };
-  const edges = flow.connections.map(toEdge);
-  const updatedEdges = addEdge(newEdge, edges);
-  const updatedConnections = updatedEdges.map(fromEdge);
-  onFlowUpdate({ ...flow, connections: updatedConnections });
-}, [flow.connections, onFlowUpdate]);
-  // --- Drag and Drop Handlers ---
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    if (!draggedComponent) return;
-
-    const reactFlowBounds = e.currentTarget.getBoundingClientRect();
-    const position = {
-      x: e.clientX - reactFlowBounds.left,
-      y: e.clientY - reactFlowBounds.top,
-    };
-
-    const newComponent: AuthComponent = {
+  const onConnect = useCallback((params: Connection) => {
+    const newEdge: Edge = {
       id: generateId(),
-      data: {},
-      type: draggedComponent,
-      name: `${draggedComponent.replace('-', ' ')} ${flow.components.length + 1}`,
-      description: '',
-      icon: '',
-      config: {},
-      position,
-      connections: []
+      source: params.source ?? '',
+      target: params.target ?? '',
+      sourceHandle: params.sourceHandle,
+      targetHandle: params.targetHandle,
     };
+    const edges = flow.connections.map(toEdge);
+    const updatedEdges = addEdge(newEdge, edges);
+    const updatedConnections = updatedEdges.map(fromEdge);
+    onFlowUpdate({ ...flow, connections: updatedConnections });
+  }, [flow.connections, onFlowUpdate]);
 
-    onFlowUpdate({ ...flow, components: [...flow.components, newComponent] });
-    setDraggedComponent(null);
-  }, [draggedComponent, flow, onFlowUpdate]);
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+  }, []);
+  
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
+      const reactFlowBounds = reactFlowWrapper.current?.getBoundingClientRect();
+      const type = event.dataTransfer.getData('application/reactflow');
 
+      // check if the dropped element is valid
+      if (typeof type === 'undefined' || !type || !reactFlowBounds) {
+        return;
+      }
+
+      const position = reactFlowInstance!.screenToFlowPosition({
+        x: event.clientX - reactFlowBounds.left,
+        y: event.clientY - reactFlowBounds.top,
+      });
+      const newComponent: AuthComponent = {
+        id: generateId(),
+        data: {},
+        type: type as AuthComponentType,
+        name: `${type.replace('-', ' ')} ${flow.components.length + 1}`,
+        description: '',
+        icon: '',
+        config: {},
+        position,
+        connections: []
+      };
+
+      onFlowUpdate({ ...flow, components: [...flow.components, newComponent] });
+    },
+    [flow, onFlowUpdate, reactFlowInstance]
+  );
   // --- Map domain models to React Flow models for rendering ---
-  const nodes: Node[] = flow.components.map(comp => ({
+  const nodes: Node[] = useMemo(() => flow.components.map(comp => ({
     id: comp.id,
     type: 'custom',
     position: comp.position,
@@ -169,19 +179,16 @@ const onConnect = useCallback((params: Connection) => {
       onSelect: setSelectedComponent,
       isSelected: selectedComponent?.id === comp.id,
     }
-  }));
+  })), [flow.components, selectedComponent, handleComponentUpdate, handleComponentDelete]);
 
-  const edges: Edge[] = flow.connections.map(toEdge);
+  const edges: Edge[] = useMemo(() => flow.connections.map(toEdge), [flow.connections]);
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <ComponentLibrary
-        onDragStart={setDraggedComponent}
-        onDragEnd={() => setDraggedComponent(null)}
-      />
-      <div className="flex-1 flex flex-col">
+      <ComponentLibrary />
+      <div className="flex-1 flex flex-col" ref={reactFlowWrapper}>
         <FlowHeader flow={flow} onFlowUpdate={onFlowUpdate} />
-        <div className="flex-1 flex" onDrop={handleDrop} onDragOver={handleDragOver}>
+        <div className="flex-1 flex" onDrop={onDrop} onDragOver={onDragOver}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -189,6 +196,7 @@ const onConnect = useCallback((params: Connection) => {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             nodeTypes={nodeTypes}
+            onInit={setReactFlowInstance}
             fitView
           >
             <Controls />
