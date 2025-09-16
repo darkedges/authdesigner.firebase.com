@@ -25,6 +25,44 @@ interface FlowBuilderProps {
   onFlowUpdate: (flow: AuthFlow) => void;
 }
 
+// -- Mapping functions --
+
+function toNode(comp: AuthComponent): Node {
+  return {
+    id: comp.id,
+    type: 'custom',
+    position: comp.position,
+    data: {
+      component: comp,
+      // These handlers are injected at render time below
+    },
+  };
+}
+
+function fromNode(node: Node, oldComp: AuthComponent): AuthComponent {
+  return {
+    ...oldComp,
+    position: node.position,
+    // You may want to copy other fields if updated via node data
+  };
+}
+
+function toEdge(conn: any): Edge {
+  return {
+    id: conn.id,
+    source: conn.sourceId,
+    target: conn.targetId,
+  };
+}
+
+function fromEdge(edge: Edge): any {
+  return {
+    id: edge.id,
+    sourceId: edge.source,
+    targetId: edge.target,
+  };
+}
+
 const nodeTypes = {
   custom: FlowNode,
 };
@@ -33,6 +71,7 @@ export const FlowBuilder: React.FC<FlowBuilderProps> = ({ flow, onFlowUpdate }) 
   const [selectedComponent, setSelectedComponent] = useState<AuthComponent | null>(null);
   const [draggedComponent, setDraggedComponent] = useState<AuthComponentType | null>(null);
 
+  // --- Component Update/Delete Handlers ---
   const handleComponentUpdate = useCallback((componentId: string, updates: Partial<AuthComponent>) => {
     const updatedFlow = {
       ...flow,
@@ -57,22 +96,37 @@ export const FlowBuilder: React.FC<FlowBuilderProps> = ({ flow, onFlowUpdate }) 
     }
   }, [flow, onFlowUpdate, selectedComponent]);
 
+  // --- React Flow Event Handlers ---
   const onNodesChange = useCallback((changes: NodeChange[]) => {
-    const updatedComponents = applyNodeChanges(changes, flow.components.map(c => ({...c, position: c.position}))).map(c => ({...c, position: c.position}));
+    const nodes = flow.components.map(toNode);
+    const updatedNodes = applyNodeChanges(changes, nodes);
+    const updatedComponents = updatedNodes.map(node =>
+      fromNode(node, flow.components.find(c => c.id === node.id)!)
+    );
     onFlowUpdate({ ...flow, components: updatedComponents });
   }, [flow.components, onFlowUpdate]);
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
-    const updatedConnections = applyEdgeChanges(changes, flow.connections);
+    const edges = flow.connections.map(toEdge);
+    const updatedEdges = applyEdgeChanges(changes, edges);
+    const updatedConnections = updatedEdges.map(fromEdge);
     onFlowUpdate({ ...flow, connections: updatedConnections });
   }, [flow.connections, onFlowUpdate]);
 
-  const onConnect = useCallback((params: Connection) => {
-    const newConnection = { ...params, id: generateId() };
-    const updatedConnections = addEdge(newConnection, flow.connections);
-    onFlowUpdate({ ...flow, connections: updatedConnections });
-  }, [flow.connections, onFlowUpdate]);
-
+const onConnect = useCallback((params: Connection) => {
+  const newEdge: Edge = {
+    id: generateId(),
+    source: params.source ?? '',
+    target: params.target ?? '',
+    sourceHandle: params.sourceHandle,
+    targetHandle: params.targetHandle,
+  };
+  const edges = flow.connections.map(toEdge);
+  const updatedEdges = addEdge(newEdge, edges);
+  const updatedConnections = updatedEdges.map(fromEdge);
+  onFlowUpdate({ ...flow, connections: updatedConnections });
+}, [flow.connections, onFlowUpdate]);
+  // --- Drag and Drop Handlers ---
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     if (!draggedComponent) return;
@@ -103,19 +157,21 @@ export const FlowBuilder: React.FC<FlowBuilderProps> = ({ flow, onFlowUpdate }) 
     e.preventDefault();
   };
 
+  // --- Map domain models to React Flow models for rendering ---
   const nodes: Node[] = flow.components.map(comp => ({
     id: comp.id,
     type: 'custom',
     position: comp.position,
-    data: { component: comp, onUpdate: handleComponentUpdate, onDelete: handleComponentDelete, onSelect: setSelectedComponent, isSelected: selectedComponent?.id === comp.id},
+    data: {
+      component: comp,
+      onUpdate: handleComponentUpdate,
+      onDelete: handleComponentDelete,
+      onSelect: setSelectedComponent,
+      isSelected: selectedComponent?.id === comp.id,
+    }
   }));
 
-  const edges: Edge[] = flow.connections.map(conn => ({
-    id: conn.id,
-    source: conn.sourceId,
-    target: conn.targetId,
-    
-  }));
+  const edges: Edge[] = flow.connections.map(toEdge);
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -130,8 +186,8 @@ export const FlowBuilder: React.FC<FlowBuilderProps> = ({ flow, onFlowUpdate }) 
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
-            // onEdgesChange={onEdgesChange}
-            // onConnect={onConnect}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
             nodeTypes={nodeTypes}
             fitView
           >
